@@ -1,0 +1,9 @@
+[package]
+name = "noise_visualizer"
+version = "0.1.0"
+authors = ["Tyler Reisinger <reisinger.tyler@gmail.com>"]
+
+[dependencies]
+glium = "*"
+noise_lib = { path="../../noise_lib/noise_lib" }
+cgmath = "^0.16"
