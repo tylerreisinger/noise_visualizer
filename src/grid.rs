@@ -19,7 +19,7 @@ impl Grid {
         Grid {
             width: width,
             height: height,
-            vals: vec![0.0; (width*height) as usize],
+            vals: vec![0.0; (width * height) as usize],
         }
     }
 
@@ -34,18 +34,21 @@ impl Grid {
         let (width, height) = (self.width, self.height);
         let num_vals = (width as usize) * (height as usize);
         let mut vertex_buffer = Vec::with_capacity(num_vals);
-        let mut index_buffer: Vec<Index> = Vec::with_capacity((width as usize - 1)*(height as usize - 1)*6);
+        let mut index_buffer: Vec<Index> =
+            Vec::with_capacity((width as usize - 1) * (height as usize - 1) * 6);
 
         for y in 0..height {
             for x in 0..width {
-                let index = (x + y*width) as usize;
-                vertex_buffer.push(Vertex { position: [x as f32, y as f32, self.vals[index] as f32] });
+                let index = (x + y * width) as usize;
+                vertex_buffer.push(Vertex {
+                    position: [x as f32, y as f32, self.vals[index] as f32],
+                });
             }
         }
 
-        for y in 0..(height-1) {
-            for x in 0..(width-1) {
-                let start_index = x + y*width;
+        for y in 0..(height - 1) {
+            for x in 0..(width - 1) {
+                let start_index = x + y * width;
                 index_buffer.push(start_index);
                 index_buffer.push(start_index + width);
                 index_buffer.push(start_index + 1);
