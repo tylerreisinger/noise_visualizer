@@ -8,3 +8,4 @@ glium = "*"
 noise_lib = { path="../../noise_lib/noise_lib" }
 cgmath = "^0.16"
 game_time = "0.2.0"
+rand = "0.4"

@@ -5,13 +5,17 @@ use std::cell::RefCell;
 use glium::glutin;
 use glium::{self, Surface};
 use cgmath::{self, Matrix4, Vector3};
+use noise_lib;
+use rand::{self, SeedableRng};
 
 use camera_controller::CameraController;
+use geom;
+use grid;
 
 #[derive(Copy, Clone)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 4],
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 4],
 }
 implement_vertex!(Vertex, position, color);
 
@@ -130,9 +134,26 @@ impl Visualizer {
         let view_projection = reflect
             * self.camera_controller
                 .borrow()
-                .make_view_perspective_matrix(4.0 / 3.0, 5.0, 100.0);
+                .make_view_perspective_matrix(4.0 / 3.0, 5.0, 1000.0);
 
-        let (vertices, indices) = create_cube();
+        let rng = rand::StdRng::from_seed(&[0; 1]);
+
+        let noise = noise_lib::perlin::build_geometric_octaves(
+            (1, 1),
+            3,
+            2.0,
+            &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
+            &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
+        );
+
+        let perlin = noise_lib::perlin::Perlin::new(
+            (3, 3),
+            &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
+            noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
+        );
+
+        let grid = grid::make_noise_grid(&noise, (100, 100));
+        let (vertices, indices) = grid.gen_vertex_buffer();
 
         let vertex_buffer = glium::VertexBuffer::new(self.display(), &vertices).unwrap();
         let index_buffer = glium::IndexBuffer::new(
@@ -147,11 +168,13 @@ impl Visualizer {
                 write: true,
                 ..Default::default()
             },
+            polygon_mode: glium::PolygonMode::Line,
             ..Default::default()
         };
 
-        let model =
-            Matrix4::from_translation(Vector3::new(0.0, 0.0, 20.0)) * Matrix4::from_scale(10.0);
+        let model = Matrix4::from_translation(Vector3::new(0.0, 0.0, 20.0))
+            * Matrix4::from_nonuniform_scale(1.0, 1.0, 10.0)
+            * Matrix4::from_scale(1.0);
 
         target
             .draw(
@@ -165,48 +188,4 @@ impl Visualizer {
             )
             .unwrap();
     }
-}
-
-fn create_cube() -> (Vec<Vertex>, Vec<u32>) {
-    let vertices = vec![
-        Vertex {
-            position: [0.0, 0.0, 0.0],
-            color: [0.0, 0.0, 0.0, 1.0],
-        },
-        Vertex {
-            position: [1.0, 0.0, 0.0],
-            color: [1.0, 0.0, 0.0, 1.0],
-        },
-        Vertex {
-            position: [1.0, 1.0, 0.0],
-            color: [1.0, 1.0, 0.0, 1.0],
-        },
-        Vertex {
-            position: [0.0, 1.0, 0.0],
-            color: [0.0, 1.0, 0.0, 1.0],
-        },
-        Vertex {
-            position: [0.0, 0.0, 1.0],
-            color: [0.0, 0.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [1.0, 0.0, 1.0],
-            color: [1.0, 0.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [1.0, 1.0, 1.0],
-            color: [1.0, 1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [0.0, 1.0, 1.0],
-            color: [0.0, 1.0, 1.0, 1.0],
-        },
-    ];
-
-    let indices = vec![
-        0, 1, 2, 2, 3, 0, 0, 3, 4, 4, 3, 7, 7, 3, 6, 6, 3, 2, 2, 1, 6, 6, 1, 5, 5, 4, 0, 0, 1, 5,
-        4, 5, 6, 6, 7, 4,
-    ];
-
-    (vertices, indices)
 }

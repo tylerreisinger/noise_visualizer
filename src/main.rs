@@ -5,9 +5,11 @@ extern crate game_time;
 #[macro_use]
 extern crate glium;
 extern crate noise_lib;
+extern crate rand;
 
 mod camera_controller;
 mod render;
+mod geom;
 mod grid;
 mod visualizer;
 

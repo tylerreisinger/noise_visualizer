@@ -1,3 +1,8 @@
+use std::f64;
+
+use cgmath;
+use noise_lib;
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Vertex {
     position: [f32; 3],
@@ -20,6 +25,16 @@ impl Grid {
             width: width,
             height: height,
             vals: vec![0.0; (width * height) as usize],
+        }
+    }
+
+    pub fn from_vec(vec: Vec<f64>, width: u32, height: u32) -> Grid {
+        assert!(width > 1 && height > 1);
+        assert!((width * height) as usize == vec.len());
+        Grid {
+            width: width,
+            height: height,
+            vals: vec,
         }
     }
 
@@ -72,4 +87,40 @@ impl AsMut<[f64]> for Grid {
     fn as_mut(&mut self) -> &mut [f64] {
         self.vals.as_mut_slice()
     }
+}
+
+pub fn make_noise_grid<N: noise_lib::noise::Noise>(perlin: &N, dimensions: (u32, u32)) -> Grid {
+    let (width, height) = dimensions;
+
+    let dx = 1.0 / f64::from(width);
+    let dy = 1.0 / f64::from(height);
+
+    let (mut min, mut max) = (f64::MAX, f64::MIN);
+
+    let mut grid_vec = Vec::with_capacity(width as usize * height as usize);
+
+    for y in 0..height {
+        let perlin_y = f64::from(y) * dy;
+        for x in 0..width {
+            let perlin_x = f64::from(x) * dx;
+
+            let value = 0.5 + perlin.value_at(cgmath::Vector2::new(perlin_x, perlin_y));
+
+            if value < min {
+                min = value;
+            }
+            if value > max {
+                max = value;
+            }
+
+            grid_vec.push(value);
+        }
+    }
+
+    let scale = max - min;
+    let coeff = 1.0 / scale;
+
+    println!("{} {}", min, max);
+    let scaled_vec = grid_vec.iter().map(|x| (x - min) * coeff).collect();
+    Grid::from_vec(scaled_vec, width, height)
 }
