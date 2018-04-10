@@ -1,3 +1,6 @@
+use std::ops::Deref;
+use std::f32;
+
 use glium::glutin;
 use glium::{self, Surface};
 use cgmath::{self, Deg, InnerSpace, Matrix4, Point3, Rad, Vector2, Vector3};
@@ -84,10 +87,22 @@ impl Visualizer {
                 glutin::WindowEvent::KeyboardInput { input, .. } => {
                     handle_key_event(&input, &mut camera);
                 }
+                glutin::WindowEvent::CursorMoved { position, .. } => {
+                    let (dx, dy) = (position.0 - 400.0, position.1 - 300.0);
+                    if dx.abs() > 100.0 || dy.abs() > 100.0 {
+
+                    } else {
+                        handle_cursor_move((dx, dy), &mut camera);
+                    }
+                }
                 _ => (),
             },
             _ => (),
         });
+        self.display
+            .gl_window()
+            .deref()
+            .set_cursor_position(400, 300);
 
         self.running = !is_closing;
         self.camera = camera;
@@ -147,6 +162,30 @@ impl Visualizer {
             )
             .unwrap();
     }
+}
+
+fn handle_cursor_move(movement: (f64, f64), camera: &mut camera::Camera) {
+    const MOVE_SPEED: f32 = 0.01;
+    let (dx, dy) = (movement.0 as f32, movement.1 as f32);
+    let radius_vec = camera.look_distance();
+
+    let r = radius_vec.magnitude();
+    let mut theta = f32::acos(radius_vec.y / r);
+    let mut phi = f32::atan2(radius_vec.z, radius_vec.x);
+
+    theta += MOVE_SPEED * dy;
+    phi -= MOVE_SPEED * dx;
+
+    let x = r * theta.sin() * phi.cos();
+    let y = r * theta.sin() * phi.sin();
+    let z = r * theta.cos();
+
+    println!("{} {}", theta, phi);
+
+    let position = *camera.position();
+    let new_look_at = Point3::new(x + position.x, z + position.y, y + position.z);
+
+    camera.set_look_at(new_look_at);
 }
 
 fn handle_key_event(input: &glutin::KeyboardInput, camera: &mut camera::Camera) {
