@@ -1,10 +1,12 @@
+#![allow(dead_code)]
+
 extern crate cgmath;
 extern crate game_time;
 #[macro_use]
 extern crate glium;
 extern crate noise_lib;
 
-mod camera;
+mod camera_controller;
 mod render;
 mod grid;
 mod visualizer;

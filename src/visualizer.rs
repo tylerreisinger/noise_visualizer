@@ -1,11 +1,12 @@
 use std::ops::Deref;
 use std::f32;
+use std::cell::RefCell;
 
 use glium::glutin;
 use glium::{self, Surface};
-use cgmath::{self, Deg, InnerSpace, Matrix4, Point3, Rad, Vector2, Vector3};
+use cgmath::{self, Matrix4, Vector3};
 
-use camera;
+use camera_controller::CameraController;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -18,40 +19,36 @@ pub struct Visualizer {
     events_loop: glutin::EventsLoop,
     display: glium::Display,
     running: bool,
-    camera: camera::Camera,
     shader_program: glium::Program,
+    camera_controller: RefCell<CameraController>,
 }
 
 impl Visualizer {
     pub fn new(window_builder: glutin::WindowBuilder) -> Visualizer {
-        let mut events_loop = glutin::EventsLoop::new();
+        let events_loop = glutin::EventsLoop::new();
         let context = glutin::ContextBuilder::new();
-        let camera = camera::Camera::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(0.0, 0.0, 20.0),
+        let camera_controller = CameraController::new(
+            Vector3::new(5.0, 5.0, 0.0),
             Vector3::new(0.0, 1.0, 0.0),
-            cgmath::PerspectiveFov {
-                fovy: Rad::from(Deg(45.0)),
-                aspect: 4.0 / 3.0,
-                near: 4.0,
-                far: 100.0f32,
-            }.to_perspective(),
+            45.0,
+            f32::consts::PI / 2.0,
+            f32::consts::PI / 2.0,
         );
 
         let display = glium::Display::new(window_builder, context, &events_loop).unwrap();
 
         let shader_program = program!(&display,
             330 => {
-            vertex: include_str!("glsl/vertex.glsl"),
-            fragment: include_str!("glsl/fragment.glsl"),
+                vertex: include_str!("glsl/vertex.glsl"),
+                fragment: include_str!("glsl/fragment.glsl"),
         }).unwrap();
 
         Visualizer {
             events_loop,
             display: display,
             running: true,
-            camera: camera,
             shader_program,
+            camera_controller: RefCell::new(camera_controller),
         }
     }
 
@@ -80,20 +77,23 @@ impl Visualizer {
 
     fn event_loop(&mut self) {
         let mut is_closing = false;
-        let mut camera = self.camera.clone();
+        let mut camera_controller = self.camera_controller.borrow_mut();
         self.events_loop.poll_events(|ev| match ev {
             glutin::Event::WindowEvent { event, .. } => match event {
                 glutin::WindowEvent::Closed => is_closing = true,
                 glutin::WindowEvent::KeyboardInput { input, .. } => {
-                    handle_key_event(&input, &mut camera);
+                    camera_controller.handle_keyboard_input(&input);
                 }
                 glutin::WindowEvent::CursorMoved { position, .. } => {
                     let (dx, dy) = (position.0 - 400.0, position.1 - 300.0);
                     if dx.abs() > 100.0 || dy.abs() > 100.0 {
 
                     } else {
-                        handle_cursor_move((dx, dy), &mut camera);
+                        camera_controller.handle_mouse_move((dx, dy));
                     }
+                }
+                glutin::WindowEvent::MouseWheel { delta, .. } => {
+                    camera_controller.handle_mouse_wheel(&delta);
                 }
                 _ => (),
             },
@@ -102,10 +102,10 @@ impl Visualizer {
         self.display
             .gl_window()
             .deref()
-            .set_cursor_position(400, 300);
+            .set_cursor_position(400, 300)
+            .unwrap();
 
         self.running = !is_closing;
-        self.camera = camera;
     }
     fn update(&self) {}
     fn draw(&self, target: &mut glium::Frame) {
@@ -127,7 +127,10 @@ impl Visualizer {
             0.0,
             1.0,
         );
-        let view_projection = reflect * Matrix4::from(self.camera.clone());
+        let view_projection = reflect
+            * self.camera_controller
+                .borrow()
+                .make_view_perspective_matrix(4.0 / 3.0, 5.0, 100.0);
 
         let (vertices, indices) = create_cube();
 
@@ -161,109 +164,6 @@ impl Visualizer {
                 &draw_params,
             )
             .unwrap();
-    }
-}
-
-fn handle_cursor_move(movement: (f64, f64), camera: &mut camera::Camera) {
-    const MOVE_SPEED: f32 = 0.01;
-    let (dx, dy) = (movement.0 as f32, movement.1 as f32);
-    let radius_vec = camera.look_distance();
-
-    let r = radius_vec.magnitude();
-    let mut theta = f32::acos(radius_vec.y / r);
-    let mut phi = f32::atan2(radius_vec.z, radius_vec.x);
-
-    theta += MOVE_SPEED * dy;
-    phi -= MOVE_SPEED * dx;
-
-    let x = r * theta.sin() * phi.cos();
-    let y = r * theta.sin() * phi.sin();
-    let z = r * theta.cos();
-
-    println!("{} {}", theta, phi);
-
-    let position = *camera.position();
-    let new_look_at = Point3::new(x + position.x, z + position.y, y + position.z);
-
-    camera.set_look_at(new_look_at);
-}
-
-fn handle_key_event(input: &glutin::KeyboardInput, camera: &mut camera::Camera) {
-    const MOVE_SPEED: f32 = 2.00;
-    if input.state == glutin::ElementState::Pressed {
-        if let Some(key) = input.virtual_keycode {
-            match key {
-                glutin::VirtualKeyCode::A | glutin::VirtualKeyCode::D => {
-                    let facing = camera.look_distance().normalize();
-                    let up = *camera.up();
-                    let movement = facing.cross(up).normalize();
-
-                    let sign = if key == glutin::VirtualKeyCode::A {
-                        1.0
-                    } else {
-                        -1.0
-                    };
-
-                    let new_look_at = camera.look_at() + movement * sign;
-                    let new_position = camera.position() + movement * sign;
-
-                    camera.set_look_at(new_look_at);
-                    camera.set_position(new_position);
-                }
-                glutin::VirtualKeyCode::W | glutin::VirtualKeyCode::S => {
-                    let facing = camera.look_distance().normalize();
-                    let movement = facing * MOVE_SPEED;
-                    let sign = if key == glutin::VirtualKeyCode::W {
-                        1.0
-                    } else {
-                        -1.0
-                    };
-                    let new_look_at = camera.look_at() + movement * sign;
-                    let new_position = camera.position() + movement * sign;
-
-                    camera.set_look_at(new_look_at);
-                    camera.set_position(new_position);
-                }
-                glutin::VirtualKeyCode::Z | glutin::VirtualKeyCode::X => {
-                    let up = *camera.up();
-                    let movement = up * MOVE_SPEED;
-                    let sign = if key == glutin::VirtualKeyCode::Z {
-                        1.0
-                    } else {
-                        -1.0
-                    };
-                    let new_look_at = camera.look_at() + movement * sign;
-                    let new_position = camera.position() + movement * sign;
-
-                    camera.set_look_at(new_look_at);
-                    camera.set_position(new_position);
-                }
-                glutin::VirtualKeyCode::Q | glutin::VirtualKeyCode::E => {
-                    let distance = camera.look_distance();
-
-                    let plane_vec = Vector2::new(distance.x, distance.z);
-                    let mag = plane_vec.magnitude();
-                    let mut theta = f32::atan2(plane_vec.y, plane_vec.x);
-
-                    if key == glutin::VirtualKeyCode::Q {
-                        theta += 0.05;
-                    } else {
-                        theta -= 0.05;
-                    }
-
-                    let (sin, cos) = theta.sin_cos();
-                    let (x, y) = (mag * cos, mag * sin);
-
-                    let position = *camera.position();
-
-                    let new_look_at =
-                        Point3::new(x + position.x, camera.look_at().y, y + position.z);
-                    println!("{}, {}, {:?}, {:?}", theta, mag, distance, new_look_at);
-                    camera.set_look_at(new_look_at);
-                }
-                _ => (),
-            }
-        }
     }
 }
 
