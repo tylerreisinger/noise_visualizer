@@ -3,7 +3,7 @@
 uniform mat4 view;
 
 uniform Lights {
-    vec3 dir;
+    vec3 light_pos;
 };
 
 uniform Materials {
@@ -17,6 +17,7 @@ in Data {
     vec3 position;
     vec3 normal;
     vec3 eye;
+    vec3 light_dir;
 } DataIn;
 
 out vec4 color;
@@ -52,13 +53,13 @@ vec4 gradient(float value) {
 }
 
 void main() {
-    float intensity = max(dot(DataIn.normal, dir), 0.0);
+    float intensity = max(dot(DataIn.normal, DataIn.light_dir), 0.0);
     vec4 mat_color = gradient(DataIn.position.z);
     vec4 diffuse_color = mat_color * diffuse * intensity;
     vec4 specular_color = vec4(0.0);
 
     if(intensity > 0.0) {
-        vec3 local_light_dir = vec3(view * vec4(dir, 0.0));
+        vec3 local_light_dir = vec3(view * vec4(DataIn.light_dir, 0.0));
         vec3 h = normalize(local_light_dir + DataIn.eye);
 
         float specular_intensity = max(dot(h, DataIn.normal), 0.0);

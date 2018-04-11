@@ -11,9 +11,9 @@ use geom;
 
 #[derive(Copy, Clone)]
 struct Lights {
-    dir: [f32; 3],
+    light_pos: [f32; 3],
 }
-implement_uniform_block!(Lights, dir);
+implement_uniform_block!(Lights, light_pos);
 
 #[derive(Copy, Clone)]
 struct Materials {
@@ -175,7 +175,7 @@ impl Visualizer {
         let light_uniforms = glium::uniforms::UniformBuffer::new(
             self.display(),
             Lights {
-                dir: cgmath::conv::array3(Vector3::new(0.0, 1.0, 1.0_f32).normalize()),
+                light_pos: cgmath::conv::array3(Vector3::new(50.0, -500.0, -500.0_f32).normalize()),
             },
         ).unwrap();
         let material_uniforms = glium::uniforms::UniformBuffer::new(

@@ -8,10 +8,15 @@ uniform mat3 normal_model;
 in vec3 position;
 in vec3 normal;
 
+uniform Lights {
+    vec3 light_pos;
+};
+
 out Data {
     vec3 position;
     vec3 normal;
     vec3 eye;
+    vec3 light_dir;
 } DataOut;
 
 void main() {
@@ -23,5 +28,6 @@ void main() {
     gl_Position = mvp * vec4(position, 1.0);
     DataOut.position = position;
     DataOut.normal = world_normal;
-    DataOut.eye = -(mv * vec4(position, 1.0)).xyz;
+    DataOut.eye = normalize(-(mv * vec4(position, 1.0)).xyz);
+    DataOut.light_dir = normalize(position - light_pos);
 }
