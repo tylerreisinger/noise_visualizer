@@ -106,6 +106,8 @@ impl Visualizer {
         let mut is_wireframe = self.is_wireframe;
         let mut is_focused = self.is_focused;
 
+        let size = self.display.gl_window().get_inner_size().unwrap();
+
         self.events_loop.poll_events(|ev| match ev {
             glutin::Event::WindowEvent { event, .. } => match event {
                 glutin::WindowEvent::Closed => is_closing = true,
@@ -126,7 +128,10 @@ impl Visualizer {
                     camera_controller.handle_keyboard_input(&input);
                 }
                 glutin::WindowEvent::CursorMoved { position, .. } => {
-                    let (dx, dy) = (position.0 - 400.0, position.1 - 300.0);
+                    let (dx, dy) = (
+                        position.0 - (size.0 as f64) / 2.0,
+                        position.1 - (size.1 as f64) / 2.0,
+                    );
                     if dx.abs() > 100.0 || dy.abs() > 100.0 {
 
                     } else {
@@ -149,7 +154,7 @@ impl Visualizer {
             self.display
                 .gl_window()
                 .deref()
-                .set_cursor_position(400, 300)
+                .set_cursor_position(size.0 as i32 / 2, size.1 as i32 / 2)
                 .unwrap();
         }
     }

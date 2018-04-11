@@ -24,7 +24,7 @@ fn build_geometry(
 
     let noise = noise_lib::perlin::build_geometric_octaves(
         (1, 1),
-        6,
+        4,
         2.0,
         &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
         &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
@@ -48,7 +48,7 @@ fn build_geometry(
 fn main() {
     let window_builder = glutin::WindowBuilder::new()
         .with_title("Noise Visualizer")
-        .with_dimensions(800, 600);
+        .with_dimensions(1024, 768);
     let mut vis = visualizer::Visualizer::new(window_builder);
 
     let geom = build_geometry(&vis);
