@@ -27,5 +27,6 @@ vec4 apply_srgb(vec4 color) {
 }
 
 void main() {
-    color = apply_srgb(frag_color);
+    //color = apply_srgb(frag_color);
+    color = frag_color;
 }

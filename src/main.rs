@@ -23,9 +23,9 @@ fn build_geometry(
     let rng = rand::StdRng::new().unwrap();
 
     let noise = noise_lib::perlin::build_geometric_octaves(
-        (1, 1),
-        4,
-        2.0,
+        (2, 2),
+        8,
+        2.5,
         &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
         &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
     );
@@ -33,7 +33,7 @@ fn build_geometry(
     let grid = grid::make_noise_grid(&noise, (100, 100));
     let (vertices, indices) = grid.gen_vertex_buffer();
     let model = Matrix4::from_translation(Vector3::new(0.0, 0.0, 20.0_f32))
-        * Matrix4::from_nonuniform_scale(1.0, 1.0, 25.0) * Matrix4::from_scale(1.0);
+        * Matrix4::from_nonuniform_scale(1.0, 1.0, 50.0) * Matrix4::from_scale(1.0);
 
     let vertex_buffer = glium::VertexBuffer::new(vis.display(), &vertices).unwrap();
     let index_buffer = glium::IndexBuffer::new(

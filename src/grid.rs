@@ -53,6 +53,9 @@ impl Grid {
         let mut index_buffer: Vec<Index> =
             Vec::with_capacity((width as usize - 1) * (height as usize - 1) * 6);
 
+        let mut normal_counts = vec![0; num_vals];
+        let mut normals = vec![Vector3::new(0.0, 0.0, 0.0); num_vals];
+
         for y in 0..height {
             for x in 0..width {
                 let index = (x + y * width) as usize;
@@ -83,16 +86,33 @@ impl Grid {
                 let normal1 = a1a3.cross(a1a2).normalize();
                 let normal2 = a2a3.cross(a2a4).normalize();
 
-                vertex_buffer[start_index as usize].normal = normal1.into();
-                vertex_buffer[(start_index + 1) as usize].normal =
-                    ((normal1 + normal2) * 0.5).into();
-                vertex_buffer[(start_index + width) as usize].normal =
-                    ((normal1 + normal2) * 0.5).into();
-                vertex_buffer[(start_index + width + 1) as usize].normal = normal2.into();
+                let i1 = start_index as usize;
+                let i3 = (start_index + 1) as usize;
+                let i2 = (start_index + width) as usize;
+                let i4 = (start_index + width + 1) as usize;
+
+                normals[i1] += normal1;
+                normals[i2] += normal1 + normal2;
+                normals[i3] += normal1 + normal2;
+                normals[i4] += normal2;
+
+                normal_counts[i1] += 1;
+                normal_counts[i2] += 2;
+                normal_counts[i3] += 2;
+                normal_counts[i4] += 1;
 
                 index_buffer.push(start_index + width);
                 index_buffer.push(start_index + width + 1);
                 index_buffer.push(start_index + 1);
+            }
+        }
+
+        for y in 0..height {
+            for x in 0..width {
+                let index = (x + y * width) as usize;
+                vertex_buffer[index].normal = (normals[index] / normal_counts[index] as f32)
+                    .normalize()
+                    .into();
             }
         }
 
