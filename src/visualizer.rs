@@ -4,13 +4,10 @@ use std::cell::RefCell;
 
 use glium::glutin;
 use glium::{self, Surface};
-use cgmath::{self, InnerSpace, Matrix3, Matrix4, Vector3};
-use noise_lib;
-use rand::{self, SeedableRng};
+use cgmath::{self, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix, Vector3};
 
 use camera_controller::CameraController;
 use geom;
-use grid;
 
 #[derive(Copy, Clone)]
 struct Lights {
@@ -27,12 +24,8 @@ struct Materials {
 }
 implement_uniform_block!(Materials, ambient, diffuse, specular, shine);
 
-#[derive(Copy, Clone)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub color: [f32; 4],
-}
-implement_vertex!(Vertex, position, color);
+pub type Index = u32;
+pub use grid::Vertex;
 
 pub struct Visualizer {
     events_loop: glutin::EventsLoop,
@@ -40,6 +33,7 @@ pub struct Visualizer {
     running: bool,
     shader_program: glium::Program,
     camera_controller: RefCell<CameraController>,
+    geometry: Option<geom::Geometry<Vertex, Index>>,
 }
 
 impl Visualizer {
@@ -68,6 +62,7 @@ impl Visualizer {
             running: true,
             shader_program,
             camera_controller: RefCell::new(camera_controller),
+            geometry: None,
         }
     }
 
@@ -76,6 +71,10 @@ impl Visualizer {
     }
     pub fn events_loop(&self) -> &glutin::EventsLoop {
         &self.events_loop
+    }
+
+    pub fn set_geometry(&mut self, geom: geom::Geometry<Vertex, Index>) {
+        self.geometry = Some(geom);
     }
 
     pub fn run(&mut self) {
@@ -128,76 +127,32 @@ impl Visualizer {
     }
     fn update(&self) {}
     fn draw(&self, target: &mut glium::Frame) {
-        let reflect = Matrix4::new(
-            -1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-        );
         let (mut view, perspective) = self.camera_controller
             .borrow()
             .make_view_perspective_matrix(4.0 / 3.0, 5.0, 1000.0);
-
+        let reflect = build_x_reflection_matrix();
         view = reflect * view;
 
-        /*let view_projection = reflect
-            * self.camera_controller
-                .borrow()
-                .make_view_perspective_matrix(4.0 / 3.0, 5.0, 1000.0);
-        */
+        let geom = self.geometry.as_ref().unwrap();
 
-        let rng = rand::StdRng::from_seed(&[0; 1]);
-
-        let noise = noise_lib::perlin::build_geometric_octaves(
-            (2, 2),
-            6,
-            2.0,
-            &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
-            &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
-        );
-
-        let perlin = noise_lib::perlin::Perlin::new(
-            (3, 3),
-            &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
-            noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
-        );
+        let vertex_buffer = geom.vertex_buffer();
+        let index_buffer = geom.index_buffer();
+        let model = *geom.model();
 
         let light_uniforms = glium::uniforms::UniformBuffer::new(
             self.display(),
             Lights {
-                dir: cgmath::conv::array3(Vector3::new(0.0, 2.0, 1.0_f32).normalize()),
+                dir: cgmath::conv::array3(Vector3::new(0.0, 1.0, 1.0_f32).normalize()),
             },
         ).unwrap();
         let material_uniforms = glium::uniforms::UniformBuffer::new(
             self.display(),
             Materials {
-                ambient: [0.1, 0.1, 0.1, 1.0],
+                ambient: [0.2, 0.2, 0.2, 1.0],
                 diffuse: [1.0, 1.0, 1.0, 1.0],
                 specular: [1.0, 1.0, 1.0, 1.0],
-                shine: 16.0,
+                shine: 60.0,
             },
-        ).unwrap();
-
-        let grid = grid::make_noise_grid(&noise, (50, 50));
-        let (vertices, indices) = grid.gen_vertex_buffer();
-
-        let vertex_buffer = glium::VertexBuffer::new(self.display(), &vertices).unwrap();
-        let index_buffer = glium::IndexBuffer::new(
-            self.display(),
-            glium::index::PrimitiveType::TrianglesList,
-            &indices,
         ).unwrap();
 
         let draw_params = glium::DrawParameters {
@@ -210,28 +165,12 @@ impl Visualizer {
             ..Default::default()
         };
 
-        let model = Matrix4::from_translation(Vector3::new(0.0, 0.0, 20.0_f32))
-            * Matrix4::from_nonuniform_scale(1.0, 1.0, 25.0)
-            * Matrix4::from_scale(1.0);
-
-        println!("{:?}", model);
-
-        let normal_mat = Matrix3::new(
-            model[0][0],
-            model[0][1],
-            model[0][2],
-            model[1][0],
-            model[1][1],
-            model[1][2],
-            model[2][0],
-            model[2][1],
-            1.0,
-        );
+        let normal_mat = mat4_to_mat3(model).invert().unwrap().transpose();
 
         target
             .draw(
-                &vertex_buffer,
-                &index_buffer,
+                vertex_buffer,
+                index_buffer,
                 &self.shader_program,
                 &uniform! {
                     perspective: cgmath::conv::array4x4(perspective),
@@ -245,4 +184,39 @@ impl Visualizer {
             )
             .unwrap();
     }
+}
+
+fn build_x_reflection_matrix() -> Matrix4<f32> {
+    Matrix4::new(
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    )
+}
+
+fn mat4_to_mat3(matrix: Matrix4<f32>) -> Matrix3<f32> {
+    Matrix3::new(
+        matrix[0][0],
+        matrix[0][1],
+        matrix[0][2],
+        matrix[1][0],
+        matrix[1][1],
+        matrix[1][2],
+        matrix[2][0],
+        matrix[2][1],
+        matrix[2][2],
+    )
 }

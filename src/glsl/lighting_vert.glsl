@@ -32,22 +32,20 @@ vec4 gradient(float value) {
     }
 }
 
-
-
 void main() {
     mat4 mv = view * model;
     mat4 mvp = perspective * mv;
     gl_Position = mvp * vec4(position, 1.0);
 
-    vec4 mat_color = vec4(1.0);
-    //vec4 mat_color = gradient(position.z);
+    //vec4 mat_color = vec4(1.0);
+    vec4 mat_color = gradient(position.z);
     vec3 model_normal = normalize(normal_model * normal);
     float intensity = max(dot(model_normal, dir), 0.0);
     vec4 specular_color = vec4(0.0);
 
     if(intensity > 0.0) {
         vec3 local_pos = vec3(mv * vec4(position, 1.0));
-        vec3 local_norm = vec3(view * vec4(normal_model * normal, 0.0));
+        vec3 local_norm = vec3(vec4(model_normal, 0.0));
         vec3 local_light_dir = vec3(view * vec4(dir, 0.0));
 
         vec3 eye = normalize(-local_pos);
@@ -60,9 +58,7 @@ void main() {
     vec4 diffuse_color = mat_color * vec4(intensity);
     vec4 ambient_color = mat_color * ambient;
 
-    vec4 linear_color = max(ambient, min(diffuse_color + specular_color, 1.0));
-
-    
+    vec4 linear_color = max(ambient_color, min(diffuse_color + specular_color, 1.0));
 
     DataOut.color = linear_color;
     DataOut.normal = normal;

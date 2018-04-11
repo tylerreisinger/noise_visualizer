@@ -75,8 +75,8 @@ impl Grid {
                 let a3 = Vector3::from(vertex_buffer[(start_index + 1) as usize].position);
 
                 let a1a2 = a2 - a1;
-                let a2a3 = a3 - a2;
-                let normal = -a1a2.cross(a2a3).normalize();
+                let a1a3 = a3 - a1;
+                let normal = a1a3.cross(a1a2).normalize();
 
                 vertex_buffer[start_index as usize].normal = normal.into();
 
