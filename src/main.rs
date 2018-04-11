@@ -20,10 +20,10 @@ use cgmath::{Matrix4, Vector3};
 fn build_geometry(
     vis: &visualizer::Visualizer,
 ) -> geom::Geometry<visualizer::Vertex, visualizer::Index> {
-    let rng = rand::StdRng::from_seed(&[0; 1]);
+    let rng = rand::StdRng::new().unwrap();
 
     let noise = noise_lib::perlin::build_geometric_octaves(
-        (2, 2),
+        (1, 1),
         6,
         2.0,
         &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),

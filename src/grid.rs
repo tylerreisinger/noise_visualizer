@@ -73,12 +73,22 @@ impl Grid {
                 let a1 = Vector3::from(vertex_buffer[start_index as usize].position);
                 let a2 = Vector3::from(vertex_buffer[(start_index + width) as usize].position);
                 let a3 = Vector3::from(vertex_buffer[(start_index + 1) as usize].position);
+                let a4 = Vector3::from(vertex_buffer[(start_index + width + 1) as usize].position);
 
                 let a1a2 = a2 - a1;
                 let a1a3 = a3 - a1;
-                let normal = a1a3.cross(a1a2).normalize();
 
-                vertex_buffer[start_index as usize].normal = normal.into();
+                let a2a4 = a4 - a2;
+                let a2a3 = a3 - a2;
+                let normal1 = a1a3.cross(a1a2).normalize();
+                let normal2 = a2a3.cross(a2a4).normalize();
+
+                vertex_buffer[start_index as usize].normal = normal1.into();
+                vertex_buffer[(start_index + 1) as usize].normal =
+                    ((normal1 + normal2) * 0.5).into();
+                vertex_buffer[(start_index + width) as usize].normal =
+                    ((normal1 + normal2) * 0.5).into();
+                vertex_buffer[(start_index + width + 1) as usize].normal = normal2.into();
 
                 index_buffer.push(start_index + width);
                 index_buffer.push(start_index + width + 1);

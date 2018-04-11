@@ -35,12 +35,16 @@ pub struct Visualizer {
     camera_controller: RefCell<CameraController>,
     geometry: Option<geom::Geometry<Vertex, Index>>,
     is_wireframe: bool,
+    is_focused: bool,
 }
 
 impl Visualizer {
     pub fn new(window_builder: glutin::WindowBuilder) -> Visualizer {
         let events_loop = glutin::EventsLoop::new();
-        let context = glutin::ContextBuilder::new();
+        let context = glutin::ContextBuilder::new()
+            .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 3)))
+            .with_vsync(false)
+            .with_gl_profile(glutin::GlProfile::Core);
         let camera_controller = CameraController::new(
             Vector3::new(5.0, 5.0, 0.0),
             Vector3::new(0.0, 1.0, 0.0),
@@ -53,8 +57,8 @@ impl Visualizer {
 
         let shader_program = program!(&display,
             330 => {
-                vertex: include_str!("glsl/lighting_vert.glsl"),
-                fragment: include_str!("glsl/lighting_frag.glsl"),
+                vertex: include_str!("glsl/lighting_per_pixel_vert.glsl"),
+                fragment: include_str!("glsl/lighting_per_pixel_frag.glsl"),
         }).unwrap();
 
         Visualizer {
@@ -65,6 +69,7 @@ impl Visualizer {
             camera_controller: RefCell::new(camera_controller),
             geometry: None,
             is_wireframe: false,
+            is_focused: true,
         }
     }
 
@@ -99,10 +104,14 @@ impl Visualizer {
         let mut is_closing = false;
         let mut camera_controller = self.camera_controller.borrow_mut();
         let mut is_wireframe = self.is_wireframe;
+        let mut is_focused = self.is_focused;
 
         self.events_loop.poll_events(|ev| match ev {
             glutin::Event::WindowEvent { event, .. } => match event {
                 glutin::WindowEvent::Closed => is_closing = true,
+                glutin::WindowEvent::Focused(val) => {
+                    is_focused = val;
+                }
                 glutin::WindowEvent::KeyboardInput { input, .. } => {
                     if let Some(key) = input.virtual_keycode {
                         match key {
@@ -131,14 +140,18 @@ impl Visualizer {
             },
             _ => (),
         });
-        self.display
-            .gl_window()
-            .deref()
-            .set_cursor_position(400, 300)
-            .unwrap();
 
         self.running = !is_closing;
         self.is_wireframe = is_wireframe;
+        self.is_focused = is_focused;
+
+        if is_focused {
+            self.display
+                .gl_window()
+                .deref()
+                .set_cursor_position(400, 300)
+                .unwrap();
+        }
     }
     fn update(&self) {}
     fn draw(&self, target: &mut glium::Frame) {
@@ -166,7 +179,7 @@ impl Visualizer {
                 ambient: [0.2, 0.2, 0.2, 1.0],
                 diffuse: [1.0, 1.0, 1.0, 1.0],
                 specular: [1.0, 1.0, 1.0, 1.0],
-                shine: 60.0,
+                shine: 120.0,
             },
         ).unwrap();
 
