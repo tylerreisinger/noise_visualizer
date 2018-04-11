@@ -1,13 +1,14 @@
 use std::f64;
 
-use cgmath;
+use cgmath::{self, InnerSpace, Vector3};
 use noise_lib;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Vertex {
     position: [f32; 3],
+    normal: [f32; 3],
 }
-implement_vertex!(Vertex, position);
+implement_vertex!(Vertex, position, normal);
 
 #[derive(Clone, Debug)]
 pub struct Grid {
@@ -57,6 +58,7 @@ impl Grid {
                 let index = (x + y * width) as usize;
                 vertex_buffer.push(Vertex {
                     position: [x as f32, y as f32, self.vals[index] as f32],
+                    normal: [0.0, 0.0, 0.0],
                 });
             }
         }
@@ -67,6 +69,16 @@ impl Grid {
                 index_buffer.push(start_index);
                 index_buffer.push(start_index + width);
                 index_buffer.push(start_index + 1);
+
+                let a1 = Vector3::from(vertex_buffer[start_index as usize].position);
+                let a2 = Vector3::from(vertex_buffer[(start_index + width) as usize].position);
+                let a3 = Vector3::from(vertex_buffer[(start_index + 1) as usize].position);
+
+                let a1a2 = a2 - a1;
+                let a2a3 = a3 - a2;
+                let normal = -a1a2.cross(a2a3).normalize();
+
+                vertex_buffer[start_index as usize].normal = normal.into();
 
                 index_buffer.push(start_index + width);
                 index_buffer.push(start_index + width + 1);

@@ -26,7 +26,12 @@ impl CameraController {
         }
     }
 
-    pub fn make_view_perspective_matrix(&self, aspect: f32, near: f32, far: f32) -> Matrix4<f32> {
+    pub fn make_view_perspective_matrix(
+        &self,
+        aspect: f32,
+        near: f32,
+        far: f32,
+    ) -> (Matrix4<f32>, Matrix4<f32>) {
         let pos = Point3::new(self.position.x, self.position.y, self.position.z);
         let view = Matrix4::look_at_dir(pos, self.facing(), self.up);
         let perspective = Matrix4::from(PerspectiveFov {
@@ -36,7 +41,7 @@ impl CameraController {
             far,
         });
 
-        perspective * view
+        (view, perspective)
     }
 
     pub fn facing(&self) -> Vector3<f32> {

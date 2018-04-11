@@ -4,13 +4,28 @@ use std::cell::RefCell;
 
 use glium::glutin;
 use glium::{self, Surface};
-use cgmath::{self, Matrix4, Vector3};
+use cgmath::{self, InnerSpace, Matrix3, Matrix4, Vector3};
 use noise_lib;
 use rand::{self, SeedableRng};
 
 use camera_controller::CameraController;
 use geom;
 use grid;
+
+#[derive(Copy, Clone)]
+struct Lights {
+    dir: [f32; 3],
+}
+implement_uniform_block!(Lights, dir);
+
+#[derive(Copy, Clone)]
+struct Materials {
+    ambient: [f32; 4],
+    diffuse: [f32; 4],
+    specular: [f32; 4],
+    shine: f32,
+}
+implement_uniform_block!(Materials, ambient, diffuse, specular, shine);
 
 #[derive(Copy, Clone)]
 pub struct Vertex {
@@ -43,8 +58,8 @@ impl Visualizer {
 
         let shader_program = program!(&display,
             330 => {
-                vertex: include_str!("glsl/vertex.glsl"),
-                fragment: include_str!("glsl/fragment.glsl"),
+                vertex: include_str!("glsl/lighting_vert.glsl"),
+                fragment: include_str!("glsl/lighting_frag.glsl"),
         }).unwrap();
 
         Visualizer {
@@ -131,16 +146,23 @@ impl Visualizer {
             0.0,
             1.0,
         );
-        let view_projection = reflect
+        let (mut view, perspective) = self.camera_controller
+            .borrow()
+            .make_view_perspective_matrix(4.0 / 3.0, 5.0, 1000.0);
+
+        view = reflect * view;
+
+        /*let view_projection = reflect
             * self.camera_controller
                 .borrow()
                 .make_view_perspective_matrix(4.0 / 3.0, 5.0, 1000.0);
+        */
 
         let rng = rand::StdRng::from_seed(&[0; 1]);
 
         let noise = noise_lib::perlin::build_geometric_octaves(
-            (1, 1),
-            3,
+            (2, 2),
+            6,
             2.0,
             &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
             &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
@@ -152,7 +174,23 @@ impl Visualizer {
             noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
         );
 
-        let grid = grid::make_noise_grid(&noise, (100, 100));
+        let light_uniforms = glium::uniforms::UniformBuffer::new(
+            self.display(),
+            Lights {
+                dir: cgmath::conv::array3(Vector3::new(0.0, 2.0, 1.0_f32).normalize()),
+            },
+        ).unwrap();
+        let material_uniforms = glium::uniforms::UniformBuffer::new(
+            self.display(),
+            Materials {
+                ambient: [0.1, 0.1, 0.1, 1.0],
+                diffuse: [1.0, 1.0, 1.0, 1.0],
+                specular: [1.0, 1.0, 1.0, 1.0],
+                shine: 16.0,
+            },
+        ).unwrap();
+
+        let grid = grid::make_noise_grid(&noise, (50, 50));
         let (vertices, indices) = grid.gen_vertex_buffer();
 
         let vertex_buffer = glium::VertexBuffer::new(self.display(), &vertices).unwrap();
@@ -168,13 +206,27 @@ impl Visualizer {
                 write: true,
                 ..Default::default()
             },
-            polygon_mode: glium::PolygonMode::Line,
+            //polygon_mode: glium::PolygonMode::Line,
             ..Default::default()
         };
 
-        let model = Matrix4::from_translation(Vector3::new(0.0, 0.0, 20.0))
-            * Matrix4::from_nonuniform_scale(1.0, 1.0, 10.0)
+        let model = Matrix4::from_translation(Vector3::new(0.0, 0.0, 20.0_f32))
+            * Matrix4::from_nonuniform_scale(1.0, 1.0, 25.0)
             * Matrix4::from_scale(1.0);
+
+        println!("{:?}", model);
+
+        let normal_mat = Matrix3::new(
+            model[0][0],
+            model[0][1],
+            model[0][2],
+            model[1][0],
+            model[1][1],
+            model[1][2],
+            model[2][0],
+            model[2][1],
+            1.0,
+        );
 
         target
             .draw(
@@ -182,7 +234,12 @@ impl Visualizer {
                 &index_buffer,
                 &self.shader_program,
                 &uniform! {
-                    view_projection: cgmath::conv::array4x4(view_projection * model)
+                    perspective: cgmath::conv::array4x4(perspective),
+                    view: cgmath::conv::array4x4(view),
+                    model: cgmath::conv::array4x4(model),
+                    normal_model: cgmath::conv::array3x3(normal_mat),
+                    Lights: &light_uniforms,
+                    Materials: &material_uniforms,
                 },
                 &draw_params,
             )
