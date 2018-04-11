@@ -1,8 +1,6 @@
 use glium;
 use cgmath::Matrix4;
 
-use visualizer;
-
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CubeVertex {
     position: [f32; 3],

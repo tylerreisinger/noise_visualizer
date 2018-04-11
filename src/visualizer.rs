@@ -34,6 +34,7 @@ pub struct Visualizer {
     shader_program: glium::Program,
     camera_controller: RefCell<CameraController>,
     geometry: Option<geom::Geometry<Vertex, Index>>,
+    is_wireframe: bool,
 }
 
 impl Visualizer {
@@ -63,6 +64,7 @@ impl Visualizer {
             shader_program,
             camera_controller: RefCell::new(camera_controller),
             geometry: None,
+            is_wireframe: false,
         }
     }
 
@@ -96,10 +98,22 @@ impl Visualizer {
     fn event_loop(&mut self) {
         let mut is_closing = false;
         let mut camera_controller = self.camera_controller.borrow_mut();
+        let mut is_wireframe = self.is_wireframe;
+
         self.events_loop.poll_events(|ev| match ev {
             glutin::Event::WindowEvent { event, .. } => match event {
                 glutin::WindowEvent::Closed => is_closing = true,
                 glutin::WindowEvent::KeyboardInput { input, .. } => {
+                    if let Some(key) = input.virtual_keycode {
+                        match key {
+                            glutin::VirtualKeyCode::V => {
+                                if input.state == glutin::ElementState::Pressed {
+                                    is_wireframe = !is_wireframe;
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
                     camera_controller.handle_keyboard_input(&input);
                 }
                 glutin::WindowEvent::CursorMoved { position, .. } => {
@@ -124,6 +138,7 @@ impl Visualizer {
             .unwrap();
 
         self.running = !is_closing;
+        self.is_wireframe = is_wireframe;
     }
     fn update(&self) {}
     fn draw(&self, target: &mut glium::Frame) {
@@ -155,17 +170,8 @@ impl Visualizer {
             },
         ).unwrap();
 
-        let draw_params = glium::DrawParameters {
-            depth: glium::Depth {
-                test: glium::DepthTest::IfLess,
-                write: true,
-                ..Default::default()
-            },
-            //polygon_mode: glium::PolygonMode::Line,
-            ..Default::default()
-        };
-
         let normal_mat = mat4_to_mat3(model).invert().unwrap().transpose();
+        let draw_params = self.get_draw_params();
 
         target
             .draw(
@@ -183,6 +189,23 @@ impl Visualizer {
                 &draw_params,
             )
             .unwrap();
+    }
+
+    pub fn get_draw_params(&self) -> glium::DrawParameters {
+        let polygon_mode = if self.is_wireframe {
+            glium::PolygonMode::Line
+        } else {
+            glium::PolygonMode::Fill
+        };
+        glium::DrawParameters {
+            depth: glium::Depth {
+                test: glium::DepthTest::IfLess,
+                write: true,
+                ..Default::default()
+            },
+            polygon_mode: polygon_mode,
+            ..Default::default()
+        }
     }
 }
 
