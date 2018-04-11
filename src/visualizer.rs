@@ -4,16 +4,17 @@ use std::cell::RefCell;
 
 use glium::glutin;
 use glium::{self, Surface};
-use cgmath::{self, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix, Vector3};
+use cgmath::{self, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix, Vector3, Vector4};
 
 use camera_controller::CameraController;
 use geom;
 
 #[derive(Copy, Clone)]
 struct Lights {
+    light_color: [f32; 4],
     light_pos: [f32; 3],
 }
-implement_uniform_block!(Lights, light_pos);
+implement_uniform_block!(Lights, light_color, light_pos);
 
 #[derive(Copy, Clone)]
 struct Materials {
@@ -176,6 +177,7 @@ impl Visualizer {
             self.display(),
             Lights {
                 light_pos: cgmath::conv::array3(Vector3::new(50.0, -500.0, -500.0_f32).normalize()),
+                light_color: cgmath::conv::array4(Vector4::new(1.0, 1.0, 1.0, 1.0)),
             },
         ).unwrap();
         let material_uniforms = glium::uniforms::UniformBuffer::new(

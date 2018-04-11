@@ -8,7 +8,8 @@ uniform mat3 normal_model;
 in vec3 position;
 in vec3 normal;
 
-uniform Lights {
+layout(std140) uniform Lights {
+    vec4 light_color;
     vec3 light_pos;
 };
 

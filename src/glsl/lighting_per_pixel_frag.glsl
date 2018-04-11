@@ -2,7 +2,8 @@
 
 uniform mat4 view;
 
-uniform Lights {
+layout(std140) uniform Lights {
+    vec4 light_color;
     vec3 light_pos;
 };
 
@@ -55,7 +56,8 @@ vec4 gradient(float value) {
 void main() {
     float intensity = max(dot(DataIn.normal, DataIn.light_dir), 0.0);
     vec4 mat_color = gradient(DataIn.position.z);
-    vec4 diffuse_color = mat_color * diffuse * intensity;
+    vec4 light_color = light_color * intensity;
+    vec4 diffuse_color = mat_color * diffuse * light_color;
     vec4 specular_color = vec4(0.0);
 
     if(intensity > 0.0) {
