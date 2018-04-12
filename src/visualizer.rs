@@ -1,10 +1,14 @@
 use std::ops::Deref;
 use std::f32;
 use std::cell::RefCell;
+use std::fs;
+use std::io;
+use std::path::Path;
 
 use glium::glutin;
 use glium::{self, Surface};
 use cgmath::{self, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix, Vector3, Vector4};
+use image;
 
 use camera_controller::CameraController;
 use geom;
@@ -37,6 +41,8 @@ pub struct Visualizer {
     geometry: Option<geom::Geometry<Vertex, Index>>,
     is_wireframe: bool,
     is_focused: bool,
+
+    textures: Vec<glium::texture::Texture2d>,
 }
 
 impl Visualizer {
@@ -47,7 +53,7 @@ impl Visualizer {
             .with_vsync(false)
             .with_gl_profile(glutin::GlProfile::Core);
         let camera_controller = CameraController::new(
-            Vector3::new(5.0, 5.0, 0.0),
+            Vector3::new(0.0, 0.0, 0.0),
             Vector3::new(0.0, 1.0, 0.0),
             45.0,
             f32::consts::PI / 2.0,
@@ -71,6 +77,8 @@ impl Visualizer {
             geometry: None,
             is_wireframe: false,
             is_focused: true,
+
+            textures: Vec::new(),
         }
     }
 
@@ -87,6 +95,7 @@ impl Visualizer {
 
     pub fn run(&mut self) {
         let mut running = self.running;
+        self.load_textures();
 
         while running {
             let mut target = self.display().draw();
@@ -176,7 +185,7 @@ impl Visualizer {
         let light_uniforms = glium::uniforms::UniformBuffer::new(
             self.display(),
             Lights {
-                light_pos: cgmath::conv::array3(Vector3::new(50.0, -500.0, -500.0_f32).normalize()),
+                light_pos: cgmath::conv::array3(Vector3::new(100.0, -0.0, -500.0_f32).normalize()),
                 light_color: cgmath::conv::array4(Vector4::new(1.0, 1.0, 1.0, 1.0)),
             },
         ).unwrap();
@@ -185,7 +194,7 @@ impl Visualizer {
             Materials {
                 ambient: [0.2, 0.2, 0.2, 1.0],
                 diffuse: [1.0, 1.0, 1.0, 1.0],
-                specular: [1.0, 1.0, 1.0, 1.0],
+                specular: [0.0, 0.0, 0.0, 1.0],
                 shine: 120.0,
             },
         ).unwrap();
@@ -205,6 +214,10 @@ impl Visualizer {
                     normal_model: cgmath::conv::array3x3(normal_mat),
                     Lights: &light_uniforms,
                     Materials: &material_uniforms,
+                    grass_texture: self.textures[0].sampled(),
+                    dirt_texture: self.textures[1].sampled(),
+                    snow_texture: self.textures[2].sampled(),
+                    water_texture: self.textures[3].sampled(),
                 },
                 &draw_params,
             )
@@ -227,6 +240,38 @@ impl Visualizer {
             ..Default::default()
         }
     }
+
+    pub fn load_textures(&mut self) {
+        let grass_texture =
+            load_texture(self.display(), Path::new("./Assets/grass_texture_1.jpg")).unwrap();
+        let dirt_texture = load_texture(
+            self.display(),
+            Path::new("./Assets/Orange dirtl texture-1.jpg"),
+        ).unwrap();
+        //let snow_texture = load_texture(self.display(), Path::new("./Assets/snow_texture_1.jpg")).unwrap();
+        let stone_texture =
+            load_texture(self.display(), Path::new("./Assets/stone_texture_1.jpg")).unwrap();
+        let water_texture =
+            load_texture(self.display(), Path::new("./Assets/water_texture_1.jpg")).unwrap();
+
+        self.textures.push(grass_texture);
+        self.textures.push(dirt_texture);
+        self.textures.push(stone_texture);
+        self.textures.push(water_texture);
+    }
+}
+
+fn load_texture(display: &glium::Display, path: &Path) -> io::Result<glium::texture::Texture2d> {
+    let file = fs::File::open(path)?;
+    let reader = io::BufReader::new(file);
+
+    let img = image::load(reader, image::ImageFormat::JPEG)
+        .unwrap()
+        .to_rgba();
+    let img_dimensions = img.dimensions();
+
+    let texture_data = glium::texture::RawImage2d::from_raw_rgba(img.into_raw(), img_dimensions);
+    Ok(glium::texture::Texture2d::new(display, texture_data).unwrap())
 }
 
 fn build_x_reflection_matrix() -> Matrix4<f32> {

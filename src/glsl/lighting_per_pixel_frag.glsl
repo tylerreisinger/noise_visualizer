@@ -2,6 +2,11 @@
 
 uniform mat4 view;
 
+uniform sampler2D grass_texture;
+uniform sampler2D dirt_texture;
+uniform sampler2D snow_texture;
+uniform sampler2D water_texture;
+
 layout(std140) uniform Lights {
     vec4 light_color;
     vec3 light_pos;
@@ -19,6 +24,7 @@ in Data {
     vec3 normal;
     vec3 eye;
     vec3 light_dir;
+    vec2 tex_coord;
 } DataIn;
 
 out vec4 color;
@@ -46,16 +52,44 @@ vec4 apply_srgb(vec4 color) {
 }
 
 vec4 gradient(float value) {
-    if(value < 0.5) {
-        return vec4(0.0, DataIn.position.z * 2.0, 1.0 - DataIn.position.z * 2.0, 1.0);
+    vec4 water = vec4(0.1, 0.1, 0.6, 1.0);
+    vec4 grass = vec4(0.1, 0.6, 0.1, 1.0);
+    vec4 dirt = vec4(0.910, 0.435, 0.220, 1.0);
+    vec4 stone = vec4(0.5, 0.5, 0.5, 1.0);
+
+    if(value < 0.30) {
+        float level = smoothstep(0.15, 0.30, value);
+        return water * (1.0 - level) + grass * level;
+    } else if(value < 0.60) {
+        float level = smoothstep(0.45, 0.55, value);
+        return grass * (1.0 - level) + dirt * level;
     } else {
-        return vec4((DataIn.position.z - 0.5) * 2.0, 1.0 - (DataIn.position.z - 0.5) * 2.0, 0.0, 1.0);
+        float level = smoothstep(0.70, 0.90, value);
+        return dirt * (1.0 - level) + stone * level; 
+    }
+}
+
+vec4 texture_gradient(float value) {
+    vec4 tex1_color = texture(grass_texture, DataIn.tex_coord * 4.0);
+    vec4 tex2_color = texture(dirt_texture, DataIn.tex_coord * 4.0);
+    vec4 tex3_color = texture(snow_texture, DataIn.tex_coord * 4.0);
+    vec4 tex4_color = texture(water_texture, DataIn.tex_coord * 4.0);
+
+    if(value < 0.30) {
+        float level = smoothstep(0.20, 0.30, value);
+        return tex4_color * (1.0 - level) + tex1_color * level;
+    } else if(value < 0.60) {
+        float level = smoothstep(0.50, 0.70, value);
+        return tex1_color * (1.0 - level) + tex2_color * level;
+    } else if(value >= 0.50) {
+        float level = smoothstep(0.70, 0.85, value);
+        return tex2_color * (1.0 - level) + tex3_color * level;
     }
 }
 
 void main() {
     float intensity = max(dot(DataIn.normal, DataIn.light_dir), 0.0);
-    vec4 mat_color = gradient(DataIn.position.z);
+    vec4 mat_color = texture_gradient(1.0 - DataIn.position.z);
     vec4 light_color = light_color * intensity;
     vec4 diffuse_color = mat_color * diffuse * light_color;
     vec4 specular_color = vec4(0.0);

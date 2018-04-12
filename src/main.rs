@@ -4,6 +4,7 @@ extern crate cgmath;
 extern crate game_time;
 #[macro_use]
 extern crate glium;
+extern crate image;
 extern crate noise_lib;
 extern crate rand;
 
@@ -22,17 +23,18 @@ fn build_geometry(
     let rng = rand::StdRng::new().unwrap();
 
     let noise = noise_lib::perlin::build_geometric_octaves(
-        (2, 2),
+        (1, 1),
         8,
         2.5,
         &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
         &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
     );
 
-    let grid = grid::make_noise_grid(&noise, (100, 100));
+    let grid = grid::make_noise_grid(&noise, (300, 300));
     let (vertices, indices) = grid.gen_vertex_buffer();
-    let model = Matrix4::from_translation(Vector3::new(0.0, 0.0, 20.0_f32))
-        * Matrix4::from_nonuniform_scale(1.0, 1.0, 30.0) * Matrix4::from_scale(1.0);
+    let model = Matrix4::from_translation(Vector3::new(-50.0, -50.0, 20.0_f32))
+        * Matrix4::from_nonuniform_scale(1.0, 1.0, 100.0)
+        * Matrix4::from_scale(0.3333);
 
     let vertex_buffer = glium::VertexBuffer::new(vis.display(), &vertices).unwrap();
     let index_buffer = glium::IndexBuffer::new(
@@ -54,4 +56,25 @@ fn main() {
     vis.set_geometry(geom);
 
     vis.run();
+}
+
+fn build_z_reflection_matrix() -> Matrix4<f32> {
+    Matrix4::new(
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    )
 }

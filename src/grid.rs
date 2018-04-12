@@ -7,8 +7,9 @@ use noise_lib;
 pub struct Vertex {
     position: [f32; 3],
     normal: [f32; 3],
+    tex_coord: [f32; 2],
 }
-implement_vertex!(Vertex, position, normal);
+implement_vertex!(Vertex, position, normal, tex_coord);
 
 #[derive(Clone, Debug)]
 pub struct Grid {
@@ -62,6 +63,10 @@ impl Grid {
                 vertex_buffer.push(Vertex {
                     position: [x as f32, y as f32, self.vals[index] as f32],
                     normal: [0.0, 0.0, 0.0],
+                    tex_coord: [
+                        (x as f32) / (width - 1) as f32,
+                        (y as f32) / (height - 1) as f32,
+                    ],
                 });
             }
         }

@@ -488,6 +488,7 @@ dependencies = [
  "cgmath 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "game_time 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "image 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "noise_lib 0.1.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
