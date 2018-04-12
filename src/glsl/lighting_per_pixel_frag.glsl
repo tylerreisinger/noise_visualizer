@@ -78,10 +78,10 @@ vec4 texture_gradient(float value) {
     if(value < 0.30) {
         float level = smoothstep(0.20, 0.30, value);
         return tex4_color * (1.0 - level) + tex1_color * level;
-    } else if(value < 0.60) {
-        float level = smoothstep(0.50, 0.70, value);
+    } else if(value < 0.70) {
+        float level = smoothstep(0.50, 0.65, value);
         return tex1_color * (1.0 - level) + tex2_color * level;
-    } else if(value >= 0.50) {
+    } else if(value >= 0.70) {
         float level = smoothstep(0.70, 0.85, value);
         return tex2_color * (1.0 - level) + tex3_color * level;
     }
