@@ -5,6 +5,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+use glium::uniforms::{self, AsUniformValue, UniformBlock, UniformValue};
 use glium::glutin;
 use glium::{self, Surface};
 use cgmath::{self, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix, Vector3, Vector4};
@@ -13,6 +14,8 @@ use image;
 use camera_controller::CameraController;
 use geom;
 
+const MAX_MATERIALS: usize = 5;
+
 #[derive(Copy, Clone)]
 struct Lights {
     light_color: [f32; 4],
@@ -20,14 +23,21 @@ struct Lights {
 }
 implement_uniform_block!(Lights, light_color, light_pos);
 
-#[derive(Copy, Clone)]
-struct Materials {
-    ambient: [f32; 4],
-    diffuse: [f32; 4],
-    specular: [f32; 4],
-    shine: f32,
+#[derive(Copy, Clone, Debug, Default)]
+pub struct Material {
+    pub ambient: [f32; 4],
+    pub diffuse: [f32; 4],
+    pub specular: [f32; 4],
+    pub shine: f32,
+    pub _padding: [f32; 3],
 }
-implement_uniform_block!(Materials, ambient, diffuse, specular, shine);
+implement_uniform_block!(Material, ambient, diffuse, specular, shine);
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Materials {
+    pub mat: [Material; MAX_MATERIALS],
+}
+implement_uniform_block!(Materials, mat);
 
 pub type Index = u32;
 pub use grid::Vertex;
@@ -41,6 +51,7 @@ pub struct Visualizer {
     geometry: Option<geom::Geometry<Vertex, Index>>,
     is_wireframe: bool,
     is_focused: bool,
+    materials: Option<glium::uniforms::UniformBuffer<Materials>>,
 
     textures: Vec<glium::texture::Texture2d>,
 }
@@ -77,6 +88,7 @@ impl Visualizer {
             geometry: None,
             is_wireframe: false,
             is_focused: true,
+            materials: None,
 
             textures: Vec::new(),
         }
@@ -91,6 +103,9 @@ impl Visualizer {
 
     pub fn set_geometry(&mut self, geom: geom::Geometry<Vertex, Index>) {
         self.geometry = Some(geom);
+    }
+    pub fn set_materials(&mut self, materials: uniforms::UniformBuffer<Materials>) {
+        self.materials = Some(materials);
     }
 
     pub fn run(&mut self) {
@@ -189,15 +204,10 @@ impl Visualizer {
                 light_color: cgmath::conv::array4(Vector4::new(1.0, 1.0, 1.0, 1.0)),
             },
         ).unwrap();
-        let material_uniforms = glium::uniforms::UniformBuffer::new(
-            self.display(),
-            Materials {
-                ambient: [0.2, 0.2, 0.2, 1.0],
-                diffuse: [1.0, 1.0, 1.0, 1.0],
-                specular: [0.0, 0.0, 0.0, 1.0],
-                shine: 120.0,
-            },
-        ).unwrap();
+
+        let material_uniforms = self.materials
+            .as_ref()
+            .expect("Visualizer requires materials to be set");
 
         let normal_mat = mat4_to_mat3(model).invert().unwrap().transpose();
         let draw_params = self.get_draw_params();
@@ -213,7 +223,7 @@ impl Visualizer {
                     model: cgmath::conv::array4x4(model),
                     normal_model: cgmath::conv::array3x3(normal_mat),
                     Lights: &light_uniforms,
-                    Materials: &material_uniforms,
+                    Materials: material_uniforms,
                     grass_texture: self.textures[0].sampled(),
                     dirt_texture: self.textures[1].sampled(),
                     snow_texture: self.textures[2].sampled(),
@@ -307,4 +317,18 @@ fn mat4_to_mat3(matrix: Matrix4<f32>) -> Matrix3<f32> {
         matrix[2][1],
         matrix[2][2],
     )
+}
+
+impl Materials {
+    pub fn new(materials: &[Material]) -> Materials {
+        assert!(materials.len() <= MAX_MATERIALS);
+
+        let mut mats = Materials::default();
+
+        for (i, m) in materials.iter().enumerate() {
+            mats.mat[i] = *m;
+        }
+
+        mats
+    }
 }

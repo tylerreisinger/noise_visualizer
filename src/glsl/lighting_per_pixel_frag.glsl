@@ -12,11 +12,15 @@ layout(std140) uniform Lights {
     vec3 light_pos;
 };
 
-uniform Materials {
+struct Material {
     vec4 ambient;
     vec4 diffuse;
     vec4 specular;
     float shine;
+};
+
+uniform Materials {
+    Material mat[5];
 };
 
 in Data {
@@ -86,12 +90,19 @@ vec4 texture_gradient(float value) {
         return tex2_color * (1.0 - level) + tex3_color * level;
     }
 }
+int texture_mat(float value) {
+    if(value < 0.25) {
+        return 1;
+    }
+    return 0;
+}
 
 void main() {
+    Material frag_mat = mat[texture_mat(1.0 - DataIn.position.z)];
     float intensity = max(dot(DataIn.normal, DataIn.light_dir), 0.0);
     vec4 mat_color = texture_gradient(1.0 - DataIn.position.z);
     vec4 light_color = light_color * intensity;
-    vec4 diffuse_color = mat_color * diffuse * light_color;
+    vec4 diffuse_color = mat_color * frag_mat.diffuse * light_color;
     vec4 specular_color = vec4(0.0);
 
     if(intensity > 0.0) {
@@ -99,8 +110,8 @@ void main() {
         vec3 h = normalize(local_light_dir + DataIn.eye);
 
         float specular_intensity = max(dot(h, DataIn.normal), 0.0);
-        specular_color = specular * pow(specular_intensity, shine);
+        specular_color = frag_mat.specular * pow(specular_intensity, frag_mat.shine);
     }
 
-    color = apply_srgb(max(diffuse_color + specular_color, ambient * mat_color));
+    color = apply_srgb(max(diffuse_color + specular_color, mat[0].ambient * mat_color));
 }

@@ -136,7 +136,10 @@ impl AsMut<[f64]> for Grid {
     }
 }
 
-pub fn make_noise_grid<N: noise_lib::noise::Noise>(perlin: &N, dimensions: (u32, u32)) -> Grid {
+pub fn make_noise_grid<N>(perlin: &N, dimensions: (u32, u32)) -> Grid
+where
+    N: noise_lib::noise::Noise<IndexType = cgmath::Vector2<f64>>,
+{
     let (width, height) = dimensions;
 
     let dx = 1.0 / f64::from(width);

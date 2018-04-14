@@ -13,9 +13,33 @@ mod render;
 mod geom;
 mod grid;
 mod visualizer;
+mod uniform;
 
 use glium::glutin;
 use cgmath::{Matrix4, Vector3};
+
+fn build_material_uniform(
+    vis: &visualizer::Visualizer,
+) -> glium::uniforms::UniformBuffer<visualizer::Materials> {
+    let materials = visualizer::Materials::new(&[
+        visualizer::Material {
+            ambient: [0.2, 0.2, 0.2, 1.0],
+            diffuse: [1.0, 1.0, 1.0, 1.0],
+            specular: [0.0, 0.0, 0.0, 1.0],
+            shine: 120.0,
+            _padding: Default::default(),
+        },
+        visualizer::Material {
+            ambient: [0.2, 0.2, 0.2, 1.0],
+            diffuse: [1.0, 1.0, 1.0, 1.0],
+            specular: [1.0, 1.0, 1.0, 1.0],
+            shine: 120.0,
+            _padding: Default::default(),
+        },
+    ]);
+
+    glium::uniforms::UniformBuffer::new(vis.display(), materials).unwrap()
+}
 
 fn build_geometry(
     vis: &visualizer::Visualizer,
@@ -23,14 +47,14 @@ fn build_geometry(
     let rng = rand::StdRng::new().unwrap();
 
     let noise = noise_lib::perlin::build_geometric_octaves(
-        (1, 1),
-        8,
-        2.5,
+        (2, 2),
+        10,
+        3.0,
         &mut noise_lib::perlin::RandomGradientBuilder2d::new(rng),
         &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
     );
 
-    let grid = grid::make_noise_grid(&noise, (300, 300));
+    let grid = grid::make_noise_grid(&noise, (200, 200));
     let (vertices, indices) = grid.gen_vertex_buffer();
     let model = Matrix4::from_translation(Vector3::new(-50.0, -50.0, 20.0_f32))
         * Matrix4::from_nonuniform_scale(1.0, 1.0, 100.0)
@@ -53,7 +77,9 @@ fn main() {
     let mut vis = visualizer::Visualizer::new(window_builder);
 
     let geom = build_geometry(&vis);
+    let materials = build_material_uniform(&vis);
     vis.set_geometry(geom);
+    vis.set_materials(materials);
 
     vis.run();
 }
