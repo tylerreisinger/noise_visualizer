@@ -170,7 +170,7 @@ where
     let scale = max - min;
     let coeff = 1.0 / scale;
 
-    println!("{} {}", min, max);
+    //println!("{} {}", min, max);
     let scaled_vec = grid_vec.iter().map(|x| (x - min) * coeff).collect();
     Grid::from_vec(scaled_vec, width, height)
 }

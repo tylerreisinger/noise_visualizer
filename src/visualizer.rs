@@ -5,7 +5,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use glium::uniforms::{self, AsUniformValue, UniformBlock, UniformValue};
+use glium::uniforms;
 use glium::glutin;
 use glium::{self, Surface};
 use cgmath::{self, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix, Vector3, Vector4};
@@ -48,12 +48,13 @@ pub struct Visualizer {
     running: bool,
     shader_program: glium::Program,
     camera_controller: RefCell<CameraController>,
-    geometry: Option<geom::Geometry<Vertex, Index>>,
+    geometry: Option<RefCell<Box<geom::GeometryProvider<Vertex, Index>>>>,
     is_wireframe: bool,
     is_focused: bool,
     materials: Option<glium::uniforms::UniformBuffer<Materials>>,
 
     textures: Vec<glium::texture::Texture2d>,
+    update_method: Option<Box<FnMut()>>,
 }
 
 impl Visualizer {
@@ -91,6 +92,7 @@ impl Visualizer {
             materials: None,
 
             textures: Vec::new(),
+            update_method: None,
         }
     }
 
@@ -101,8 +103,8 @@ impl Visualizer {
         &self.events_loop
     }
 
-    pub fn set_geometry(&mut self, geom: geom::Geometry<Vertex, Index>) {
-        self.geometry = Some(geom);
+    pub fn set_geometry(&mut self, geom: Box<geom::GeometryProvider<Vertex, Index>>) {
+        self.geometry = Some(RefCell::new(geom));
     }
     pub fn set_materials(&mut self, materials: uniforms::UniformBuffer<Materials>) {
         self.materials = Some(materials);
@@ -183,7 +185,17 @@ impl Visualizer {
                 .unwrap();
         }
     }
-    fn update(&self) {}
+
+    fn update(&mut self) {
+        if let Some(ref mut f) = self.update_method {
+            f();
+        }
+    }
+
+    pub fn set_update_fn(&mut self, f: Box<FnMut()>) {
+        self.update_method = Some(f);
+    }
+
     fn draw(&self, target: &mut glium::Frame) {
         let (mut view, perspective) = self.camera_controller
             .borrow()
@@ -191,7 +203,9 @@ impl Visualizer {
         let reflect = build_x_reflection_matrix();
         view = reflect * view;
 
-        let geom = self.geometry.as_ref().unwrap();
+        let mut geom_provider = self.geometry.as_ref().unwrap().borrow_mut();
+        geom_provider.update(self);
+        let geom = geom_provider.get_geometry();
 
         let vertex_buffer = geom.vertex_buffer();
         let index_buffer = geom.index_buffer();

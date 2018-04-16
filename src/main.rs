@@ -8,6 +8,7 @@ extern crate image;
 extern crate noise_lib;
 extern crate rand;
 
+mod animated;
 mod camera_controller;
 mod render;
 mod geom;
@@ -17,6 +18,7 @@ mod uniform;
 
 use glium::glutin;
 use cgmath::{Matrix4, Vector3};
+use geom::GeometryProvider;
 
 fn build_material_uniform(
     vis: &visualizer::Visualizer,
@@ -70,15 +72,31 @@ fn build_geometry(
     geom::Geometry::new(vertex_buffer, index_buffer, model)
 }
 
+fn build_perlin_animation() -> Box<GeometryProvider<visualizer::Vertex, visualizer::Index>> {
+    let rng = rand::StdRng::new().unwrap();
+
+    let noise = noise_lib::perlin3d::build_geometric_octaves(
+        (2, 2, 3),
+        8,
+        2.5,
+        &mut noise_lib::perlin3d::RandomGradientBuilder3d::new(rng),
+        &noise_lib::interpolate::ImprovedPerlinInterpolator::new(),
+    );
+
+    Box::new(animated::PerlinAnimation::new(noise, (150, 150)))
+}
+
 fn main() {
     let window_builder = glutin::WindowBuilder::new()
         .with_title("Noise Visualizer")
         .with_dimensions(1024, 768);
     let mut vis = visualizer::Visualizer::new(window_builder);
 
-    let geom = build_geometry(&vis);
+    //let geom = build_geometry(&vis);
+    let anim = build_perlin_animation();
     let materials = build_material_uniform(&vis);
-    vis.set_geometry(geom);
+    //vis.set_geometry(Box::new(geom));
+    vis.set_geometry(anim);
     vis.set_materials(materials);
 
     vis.run();

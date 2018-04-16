@@ -1,5 +1,15 @@
 use glium;
 use cgmath::Matrix4;
+use visualizer::Visualizer;
+
+pub trait GeometryProvider<V, I>
+where
+    V: glium::Vertex,
+    I: glium::index::Index,
+{
+    fn get_geometry(&self) -> &Geometry<V, I>;
+    fn update(&mut self, _vis: &Visualizer) {}
+}
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CubeVertex {
@@ -42,6 +52,16 @@ where
     }
     pub fn model(&self) -> &Matrix4<f32> {
         &self.model
+    }
+}
+
+impl<V, I> GeometryProvider<V, I> for Geometry<V, I>
+where
+    V: glium::Vertex,
+    I: glium::index::Index,
+{
+    fn get_geometry(&self) -> &Geometry<V, I> {
+        &*self
     }
 }
 
